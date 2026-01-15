@@ -611,6 +611,10 @@ export default function RedVsBlueSphere({ mode, onReturnToMenu }) {
   // Stats
   const [turnCount, setTurnCount] = useState(0);
 
+  // Statistics tracking
+  const [showStats, setShowStats] = useState(false);
+  const gameStatsRef = useRef([]);
+
   // Zoom state
   const [zoom, setZoom] = useState(2.5);
   const minZoom = 1.5;
@@ -939,6 +943,19 @@ export default function RedVsBlueSphere({ mode, onReturnToMenu }) {
 
     const { data, states } = initGame("goldberg", 2, 3);
     setIsInitialized(true);
+
+    // Initialize statistics
+    gameStatsRef.current = [
+      {
+        turn: 0,
+        red: states.filter((s) => s === "red").length,
+        blue: states.filter((s) => s === "blue").length,
+        empty: states.filter((s) => s === "empty").length,
+        eliminated: 0,
+        player: null,
+        action: "start",
+      },
+    ];
 
     // Initial camera position
     setTimeout(() => {
@@ -1412,7 +1429,28 @@ export default function RedVsBlueSphere({ mode, onReturnToMenu }) {
       setSelectedTile(null);
       aiThinkingRef.current = false;
       setAiThinking(false);
+
+      // Record statistics
+      gameStatsRef.current.push({
+        turn: turnCount + 1,
+        red: newStates.filter((s) => s === "red").length,
+        blue: newStates.filter((s) => s === "blue").length,
+        empty: newStates.filter((s) => s === "empty").length,
+        eliminated: newStates.filter((s) => s === "eliminated").length,
+        player: player,
+        action: action.type,
+      });
     },
+    [
+      neighbors,
+      checkCaptures,
+      canMove,
+      playSound,
+      autoRotate,
+      getPlayerCentroid,
+      polyData,
+      rotateToFace,
+    ],
     [
       neighbors,
       checkCaptures,
@@ -1775,6 +1813,19 @@ export default function RedVsBlueSphere({ mode, onReturnToMenu }) {
 
     const { data, states } = initGame(sphereType, subdivisions, startingTiles);
 
+    // Reset statistics
+    gameStatsRef.current = [
+      {
+        turn: 0,
+        red: states.filter((s) => s === "red").length,
+        blue: states.filter((s) => s === "blue").length,
+        empty: states.filter((s) => s === "empty").length,
+        eliminated: 0,
+        player: null,
+        action: "start",
+      },
+    ];
+
     setTimeout(() => {
       const centroid = getPlayerCentroid("red", states, data);
       if (centroid) rotateToFace(centroid);
@@ -1788,7 +1839,14 @@ export default function RedVsBlueSphere({ mode, onReturnToMenu }) {
         <h1 className="text-xl sm:text-2xl font-black text-gradient-purple">
           Red vs Blue
         </h1>
-        <div className="flex items-center gap-2 text-xs text-gray-400">
+        <div className="flex items-center gap-3 text-xs text-gray-400">
+          <button
+            onClick={() => setShowStats(!showStats)}
+            className={`px-3 py-1.5 glass rounded-lg hover:bg-white/20 transition-colors font-semibold ${showStats ? "text-purple-400 bg-purple-500/20" : "text-purple-300"}`}
+            title="Toggle Statistics Panel"
+          >
+            📊 Stats {showStats ? "▼" : "▶"}
+          </button>
           <span>
             Turn: <span className="text-white font-bold">{turnCount + 1}</span>
           </span>
@@ -1826,7 +1884,9 @@ export default function RedVsBlueSphere({ mode, onReturnToMenu }) {
       {/* Main Game Area */}
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
         {/* Left Sidebar - Game Info & Controls */}
-        <div className="lg:w-72 flex flex-col gap-2 p-2 lg:p-3 overflow-y-auto border-b lg:border-b-0 lg:border-r border-white/10">
+        <div
+          className={`flex flex-col gap-2 p-2 lg:p-3 overflow-y-auto border-b lg:border-b-0 lg:border-r border-white/10 transition-all ${showStats ? "lg:w-64" : "lg:w-72"}`}
+        >
           {/* Score Board */}
           <div className="flex lg:flex-col gap-2">
             {/* Red Player */}
@@ -2212,6 +2272,467 @@ export default function RedVsBlueSphere({ mode, onReturnToMenu }) {
             </div>
           </div>
         </div>
+
+        {/* Statistics Panel */}
+        {showStats && (
+          <div className="lg:w-96 xl:w-[28rem] flex flex-col border-l border-white/10 bg-gradient-to-br from-slate-900/95 to-slate-800/95 backdrop-blur-sm overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b border-white/10">
+              <h2 className="text-lg font-black text-gradient-purple">
+                📊 Statistics
+              </h2>
+              <button
+                onClick={() => setShowStats(false)}
+                className="w-8 h-8 glass rounded-lg hover:bg-white/20 transition-colors flex items-center justify-center text-white text-sm"
+                title="Close Stats Panel"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4">
+              {/* Summary Stats */}
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <div className="card-elevated p-3">
+                  <div className="text-gray-400 text-xs mb-1">Total Turns</div>
+                  <div className="text-2xl font-black text-white">
+                    {gameStatsRef.current.length - 1}
+                  </div>
+                </div>
+                <div className="card-elevated p-3">
+                  <div className="text-gray-400 text-xs mb-1">Red Tiles</div>
+                  <div className="text-2xl font-black text-red-400">
+                    {tileStates.filter((s) => s === "red").length}
+                  </div>
+                </div>
+                <div className="card-elevated p-3">
+                  <div className="text-gray-400 text-xs mb-1">Blue Tiles</div>
+                  <div className="text-2xl font-black text-blue-400">
+                    {tileStates.filter((s) => s === "blue").length}
+                  </div>
+                </div>
+                <div className="card-elevated p-3">
+                  <div className="text-gray-400 text-xs mb-1">Eliminated</div>
+                  <div className="text-2xl font-black text-gray-500">
+                    {tileStates.filter((s) => s === "eliminated").length}
+                  </div>
+                </div>
+              </div>
+
+              {/* Charts */}
+              {gameStatsRef.current.length > 1 && (
+                <div className="space-y-4">
+                  {/* Red vs Blue Chart */}
+                  <div className="card-elevated p-3">
+                    <h3 className="text-white font-bold text-sm mb-3">
+                      Red vs Blue Territory
+                    </h3>
+                    <div className="w-full h-48">
+                      <svg
+                        viewBox="0 0 600 200"
+                        className="w-full h-full"
+                        preserveAspectRatio="none"
+                      >
+                        {/* Grid lines */}
+                        {[0, 25, 50, 75, 100].map((y) => (
+                          <line
+                            key={y}
+                            x1="40"
+                            y1={20 + (y * 160) / 100}
+                            x2="580"
+                            y2={20 + (y * 160) / 100}
+                            stroke="#374151"
+                            strokeWidth="0.5"
+                          />
+                        ))}
+
+                        {/* Y-axis labels */}
+                        {[0, 25, 50, 75, 100].map((val) => (
+                          <text
+                            key={val}
+                            x="35"
+                            y={185 - (val * 160) / 100}
+                            fill="#9CA3AF"
+                            fontSize="10"
+                            textAnchor="end"
+                          >
+                            {val}
+                          </text>
+                        ))}
+
+                        {/* Red line */}
+                        <polyline
+                          points={gameStatsRef.current
+                            .map((stat, i) => {
+                              const x =
+                                40 +
+                                (i * 540) / (gameStatsRef.current.length - 1);
+                              const maxTiles = polyData?.faces?.length || 100;
+                              const y = 180 - (stat.red / maxTiles) * 160;
+                              return `${x},${y}`;
+                            })
+                            .join(" ")}
+                          fill="none"
+                          stroke="#EF4444"
+                          strokeWidth="3"
+                        />
+
+                        {/* Blue line */}
+                        <polyline
+                          points={gameStatsRef.current
+                            .map((stat, i) => {
+                              const x =
+                                40 +
+                                (i * 540) / (gameStatsRef.current.length - 1);
+                              const maxTiles = polyData?.faces?.length || 100;
+                              const y = 180 - (stat.blue / maxTiles) * 160;
+                              return `${x},${y}`;
+                            })
+                            .join(" ")}
+                          fill="none"
+                          stroke="#3B82F6"
+                          strokeWidth="3"
+                        />
+
+                        {/* X-axis */}
+                        <line
+                          x1="40"
+                          y1="180"
+                          x2="580"
+                          y2="180"
+                          stroke="#4B5563"
+                          strokeWidth="2"
+                        />
+                        <text
+                          x="310"
+                          y="198"
+                          fill="#9CA3AF"
+                          fontSize="10"
+                          textAnchor="middle"
+                        >
+                          Turn
+                        </text>
+                      </svg>
+                    </div>
+                    <div className="flex items-center justify-center gap-4 mt-2">
+                      <div className="flex items-center gap-1">
+                        <div className="w-3 h-1 bg-red-500"></div>
+                        <span className="text-gray-300 text-xs">Red</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <div className="w-3 h-1 bg-blue-500"></div>
+                        <span className="text-gray-300 text-xs">Blue</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Empty vs Eliminated Chart */}
+                  <div className="card-elevated p-3">
+                    <h3 className="text-white font-bold text-sm mb-3">
+                      Empty vs Eliminated
+                    </h3>
+                    <div className="w-full h-48">
+                      <svg
+                        viewBox="0 0 600 200"
+                        className="w-full h-full"
+                        preserveAspectRatio="none"
+                      >
+                        {/* Grid lines */}
+                        {[0, 25, 50, 75, 100].map((y) => (
+                          <line
+                            key={y}
+                            x1="40"
+                            y1={20 + (y * 160) / 100}
+                            x2="580"
+                            y2={20 + (y * 160) / 100}
+                            stroke="#374151"
+                            strokeWidth="0.5"
+                          />
+                        ))}
+
+                        {/* Y-axis labels */}
+                        {[0, 25, 50, 75, 100].map((val) => (
+                          <text
+                            key={val}
+                            x="35"
+                            y={185 - (val * 160) / 100}
+                            fill="#9CA3AF"
+                            fontSize="10"
+                            textAnchor="end"
+                          >
+                            {val}
+                          </text>
+                        ))}
+
+                        {/* Empty line */}
+                        <polyline
+                          points={gameStatsRef.current
+                            .map((stat, i) => {
+                              const x =
+                                40 +
+                                (i * 540) / (gameStatsRef.current.length - 1);
+                              const maxTiles = polyData?.faces?.length || 100;
+                              const y = 180 - (stat.empty / maxTiles) * 160;
+                              return `${x},${y}`;
+                            })
+                            .join(" ")}
+                          fill="none"
+                          stroke="#D1D5DB"
+                          strokeWidth="3"
+                        />
+
+                        {/* Eliminated line */}
+                        <polyline
+                          points={gameStatsRef.current
+                            .map((stat, i) => {
+                              const x =
+                                40 +
+                                (i * 540) / (gameStatsRef.current.length - 1);
+                              const maxTiles = polyData?.faces?.length || 100;
+                              const y =
+                                180 - (stat.eliminated / maxTiles) * 160;
+                              return `${x},${y}`;
+                            })
+                            .join(" ")}
+                          fill="none"
+                          stroke="#6B7280"
+                          strokeWidth="3"
+                        />
+
+                        {/* X-axis */}
+                        <line
+                          x1="40"
+                          y1="180"
+                          x2="580"
+                          y2="180"
+                          stroke="#4B5563"
+                          strokeWidth="2"
+                        />
+                        <text
+                          x="310"
+                          y="198"
+                          fill="#9CA3AF"
+                          fontSize="10"
+                          textAnchor="middle"
+                        >
+                          Turn
+                        </text>
+                      </svg>
+                    </div>
+                    <div className="flex items-center justify-center gap-4 mt-2">
+                      <div className="flex items-center gap-1">
+                        <div className="w-3 h-1 bg-gray-300"></div>
+                        <span className="text-gray-300 text-xs">Empty</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <div className="w-3 h-1 bg-gray-600"></div>
+                        <span className="text-gray-300 text-xs">
+                          Eliminated
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Total Tiles Remaining Chart */}
+                  <div className="card-elevated p-3">
+                    <h3 className="text-white font-bold text-sm mb-3">
+                      Tiles Remaining
+                    </h3>
+                    <div className="w-full h-48">
+                      <svg
+                        viewBox="0 0 600 200"
+                        className="w-full h-full"
+                        preserveAspectRatio="none"
+                      >
+                        {/* Grid lines */}
+                        {[0, 25, 50, 75, 100].map((y) => (
+                          <line
+                            key={y}
+                            x1="40"
+                            y1={20 + (y * 160) / 100}
+                            x2="580"
+                            y2={20 + (y * 160) / 100}
+                            stroke="#374151"
+                            strokeWidth="0.5"
+                          />
+                        ))}
+
+                        {/* Y-axis labels */}
+                        {[0, 25, 50, 75, 100].map((val) => (
+                          <text
+                            key={val}
+                            x="35"
+                            y={185 - (val * 160) / 100}
+                            fill="#9CA3AF"
+                            fontSize="10"
+                            textAnchor="end"
+                          >
+                            {val}%
+                          </text>
+                        ))}
+
+                        {/* Area fill */}
+                        <polygon
+                          points={`40,180 ${gameStatsRef.current
+                            .map((stat, i) => {
+                              const x =
+                                40 +
+                                (i * 540) / (gameStatsRef.current.length - 1);
+                              const maxTiles = polyData?.faces?.length || 100;
+                              const remaining =
+                                stat.red + stat.blue + stat.empty;
+                              const y = 180 - (remaining / maxTiles) * 160;
+                              return `${x},${y}`;
+                            })
+                            .join(" ")} 580,180`}
+                          fill="url(#gradient)"
+                          opacity="0.3"
+                        />
+
+                        {/* Gradient definition */}
+                        <defs>
+                          <linearGradient
+                            id="gradient"
+                            x1="0%"
+                            y1="0%"
+                            x2="0%"
+                            y2="100%"
+                          >
+                            <stop
+                              offset="0%"
+                              stopColor="#8B5CF6"
+                              stopOpacity="1"
+                            />
+                            <stop
+                              offset="100%"
+                              stopColor="#8B5CF6"
+                              stopOpacity="0"
+                            />
+                          </linearGradient>
+                        </defs>
+
+                        {/* Line */}
+                        <polyline
+                          points={gameStatsRef.current
+                            .map((stat, i) => {
+                              const x =
+                                40 +
+                                (i * 540) / (gameStatsRef.current.length - 1);
+                              const maxTiles = polyData?.faces?.length || 100;
+                              const remaining =
+                                stat.red + stat.blue + stat.empty;
+                              const y = 180 - (remaining / maxTiles) * 160;
+                              return `${x},${y}`;
+                            })
+                            .join(" ")}
+                          fill="none"
+                          stroke="#8B5CF6"
+                          strokeWidth="3"
+                        />
+
+                        {/* X-axis */}
+                        <line
+                          x1="40"
+                          y1="180"
+                          x2="580"
+                          y2="180"
+                          stroke="#4B5563"
+                          strokeWidth="2"
+                        />
+                        <text
+                          x="310"
+                          y="198"
+                          fill="#9CA3AF"
+                          fontSize="10"
+                          textAnchor="middle"
+                        >
+                          Turn
+                        </text>
+                      </svg>
+                    </div>
+                  </div>
+
+                  {/* Move History Table */}
+                  <div className="card-elevated p-3">
+                    <h3 className="text-white font-bold text-sm mb-3">
+                      Move History
+                    </h3>
+                    <div className="overflow-x-auto max-h-64 overflow-y-auto">
+                      <table className="w-full text-xs">
+                        <thead className="sticky top-0 bg-slate-800">
+                          <tr className="text-gray-400 border-b border-white/10">
+                            <th className="px-2 py-1.5 text-left">Turn</th>
+                            <th className="px-2 py-1.5 text-left">Player</th>
+                            <th className="px-2 py-1.5 text-left">Action</th>
+                            <th className="px-2 py-1.5 text-right">R</th>
+                            <th className="px-2 py-1.5 text-right">B</th>
+                            <th className="px-2 py-1.5 text-right">E</th>
+                            <th className="px-2 py-1.5 text-right">X</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {gameStatsRef.current
+                            .slice()
+                            .reverse()
+                            .map((stat, idx) => (
+                              <tr
+                                key={gameStatsRef.current.length - 1 - idx}
+                                className="border-b border-white/5 hover:bg-white/5"
+                              >
+                                <td className="px-2 py-1.5 text-gray-300">
+                                  {stat.turn}
+                                </td>
+                                <td className="px-2 py-1.5">
+                                  {stat.player === "red" ? (
+                                    <span className="text-red-400 font-semibold">
+                                      🔴
+                                    </span>
+                                  ) : stat.player === "blue" ? (
+                                    <span className="text-blue-400 font-semibold">
+                                      🔵
+                                    </span>
+                                  ) : (
+                                    <span className="text-gray-500">▶</span>
+                                  )}
+                                </td>
+                                <td className="px-2 py-1.5 text-gray-300">
+                                  {stat.action === "move"
+                                    ? "↔️"
+                                    : stat.action === "eliminate"
+                                      ? "❌"
+                                      : "🎮"}
+                                </td>
+                                <td className="px-2 py-1.5 text-right text-red-400 font-mono">
+                                  {stat.red}
+                                </td>
+                                <td className="px-2 py-1.5 text-right text-blue-400 font-mono">
+                                  {stat.blue}
+                                </td>
+                                <td className="px-2 py-1.5 text-right text-gray-400 font-mono">
+                                  {stat.empty}
+                                </td>
+                                <td className="px-2 py-1.5 text-right text-gray-500 font-mono">
+                                  {stat.eliminated}
+                                </td>
+                              </tr>
+                            ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {gameStatsRef.current.length <= 1 && (
+                <div className="text-center py-12 text-gray-400">
+                  <div className="text-4xl mb-3">📊</div>
+                  <p className="text-sm">No statistics yet!</p>
+                  <p className="text-xs mt-2">Play some moves to see data.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
