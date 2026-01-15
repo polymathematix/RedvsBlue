@@ -844,23 +844,28 @@ export default function RedVsBlueSphere({ mode, onReturnToMenu }) {
     animateRotation();
   }, []);
 
-  // Check for encirclement captures
+  // Check for encirclement captures - captures entire surrounded neutral areas
   const checkCaptures = useCallback((states, neighborMap) => {
     let newStates = [...states];
     let changed = true;
 
+    // Keep checking until no more captures are possible
     while (changed) {
       changed = false;
+
+      // Check for each player if they've surrounded any neutral areas
       for (const player of ["red", "blue"]) {
+        const opponent = player === "red" ? "blue" : "red";
         const visited = new Set();
 
+        // Check each empty tile to see if it's part of a surrounded area
         for (let i = 0; i < newStates.length; i++) {
           if (newStates[i] !== "empty" || visited.has(i)) continue;
 
+          // Find all connected empty tiles (flood fill)
           const group = [];
           const queue = [i];
-          let touchesOpponent = false;
-          let touchesPlayer = false;
+          const boundaryTiles = new Set(); // Tiles bordering this empty area
 
           while (queue.length > 0) {
             const current = queue.shift();
@@ -870,28 +875,38 @@ export default function RedVsBlueSphere({ mode, onReturnToMenu }) {
               visited.add(current);
               group.push(current);
 
+              // Check all neighbors
               for (const neighbor of neighborMap[current] || []) {
                 if (newStates[neighbor] === "empty" && !visited.has(neighbor)) {
+                  // Continue flood fill into empty neighbors
                   queue.push(neighbor);
-                } else if (newStates[neighbor] === player) {
-                  touchesPlayer = true;
                 } else if (
                   newStates[neighbor] !== "empty" &&
                   newStates[neighbor] !== "eliminated"
                 ) {
-                  touchesOpponent = true;
+                  // Track what colors border this empty area
+                  boundaryTiles.add(newStates[neighbor]);
                 }
               }
             }
           }
 
-          if (group.length > 0 && touchesPlayer && !touchesOpponent) {
+          // If this empty area is completely surrounded by one player, capture it
+          // The area must touch the player and NOT touch the opponent
+          if (
+            group.length > 0 &&
+            boundaryTiles.has(player) &&
+            !boundaryTiles.has(opponent)
+          ) {
+            // Capture the entire surrounded area
             for (const idx of group) {
               newStates[idx] = player;
               changed = true;
             }
           }
         }
+
+        // If we made captures, restart from the beginning to check for cascading captures
         if (changed) break;
       }
     }
@@ -1452,7 +1467,16 @@ export default function RedVsBlueSphere({ mode, onReturnToMenu }) {
         playSound("eliminate");
       }
 
+      // Check for territory captures (surrounded areas)
+      const tilesBeforeCapture = newStates.filter((s) => s === player).length;
       newStates = checkCaptures(newStates, neighbors);
+      const tilesAfterCapture = newStates.filter((s) => s === player).length;
+      const territoryCaptured = tilesAfterCapture - tilesBeforeCapture;
+
+      // If we captured territory, play a special sound
+      if (territoryCaptured > 0) {
+        playSound("capture");
+      }
       setTurnCount((t) => t + 1);
 
       const nextPlayer = player === "red" ? "blue" : "red";
