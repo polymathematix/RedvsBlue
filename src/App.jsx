@@ -1792,11 +1792,33 @@ export default function RedVsBlueSphere({ mode, onReturnToMenu }) {
           <span>
             Turn: <span className="text-white font-bold">{turnCount + 1}</span>
           </span>
+          <span className="hidden sm:inline">•</span>
+          <span className="hidden md:inline">
+            <span className="text-red-400 font-bold">
+              {tileStates.filter((s) => s === "red").length}
+            </span>{" "}
+            red
+          </span>
+          <span className="hidden md:inline">•</span>
+          <span className="hidden md:inline">
+            <span className="text-blue-400 font-bold">
+              {tileStates.filter((s) => s === "blue").length}
+            </span>{" "}
+            blue
+          </span>
+          <span className="hidden sm:inline">•</span>
           <span className="hidden sm:inline">
-            • Tiles:{" "}
-            <span className="text-white font-bold">
-              {polyData?.faces?.length || 0}
-            </span>
+            <span className="text-gray-300 font-bold">
+              {tileStates.filter((s) => s === "empty").length}
+            </span>{" "}
+            empty
+          </span>
+          <span className="hidden sm:inline">•</span>
+          <span className="hidden sm:inline">
+            <span className="text-gray-500 font-bold">
+              {tileStates.filter((s) => s === "eliminated").length}
+            </span>{" "}
+            eliminated
           </span>
         </div>
       </div>
