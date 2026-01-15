@@ -1496,10 +1496,12 @@ export default function RedVsBlueSphere({ mode, onReturnToMenu }) {
         }
       }
 
-      setTileStates(newStates);
-      setSelectedTile(null);
+      // Reset AI thinking flag BEFORE updating states to allow next AI turn to trigger
       aiThinkingRef.current = false;
       setAiThinking(false);
+
+      setTileStates(newStates);
+      setSelectedTile(null);
 
       // Record statistics
       gameStatsRef.current.push({
@@ -1541,12 +1543,18 @@ export default function RedVsBlueSphere({ mode, onReturnToMenu }) {
       aiThinkingRef.current ||
       !polyData ||
       neighbors.length === 0
-    )
+    ) {
       return;
+    }
 
     const playerType = currentPlayer === "red" ? redPlayer : bluePlayer;
 
     if (playerType !== "human") {
+      // Clear any existing timeout before creating a new one
+      if (aiTimeoutRef.current) {
+        clearTimeout(aiTimeoutRef.current);
+      }
+
       aiThinkingRef.current = true;
       setAiThinking(true);
       setMessage(`${currentPlayer === "red" ? "Red" : "Blue"}'s turn`);
@@ -1585,8 +1593,15 @@ export default function RedVsBlueSphere({ mode, onReturnToMenu }) {
           aiThinkingRef.current = false;
           setAiThinking(false);
         }
-      }, 600);
+      }, 400);
     }
+
+    // Cleanup function to clear timeout when effect re-runs or unmounts
+    return () => {
+      if (aiTimeoutRef.current) {
+        clearTimeout(aiTimeoutRef.current);
+      }
+    };
   }, [
     currentPlayer,
     redPlayer,
@@ -1596,7 +1611,6 @@ export default function RedVsBlueSphere({ mode, onReturnToMenu }) {
     neighbors,
     polyData,
     exactElimination,
-    executeMove,
   ]);
 
   // Mouse/touch handlers
