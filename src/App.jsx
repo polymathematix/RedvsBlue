@@ -358,12 +358,7 @@ const getNeighbors = (faceIdx, faces) => {
 
 // ============ AI LOGIC ============
 const AI_TYPES = {
-  random: { name: "Random" },
-  greedy: { name: "Greedy" },
-  defensive: { name: "Defensive" },
-  strategic: { name: "Strategic" },
-  tactical: { name: "Tactical" },
-  aggressive: { name: "Aggressive" },
+  computer: { name: "Computer" },
 };
 
 const getValidMoves = (player, states, neighborMap) => {
@@ -473,7 +468,7 @@ const makeAIMove = (
   const opponent = player === "red" ? "blue" : "red";
 
   // Helper function to evaluate a position
-  const evaluatePosition = (newStates, depth = 1) => {
+  const evaluatePosition = (newStates) => {
     const myTiles = newStates.filter((s) => s === player).length;
     const theirTiles = newStates.filter((s) => s === opponent).length;
     const emptyTiles = newStates.filter((s) => s === "empty").length;
@@ -506,157 +501,7 @@ const makeAIMove = (
     };
   };
 
-  if (aiType === "random") {
-    return allActions[Math.floor(Math.random() * allActions.length)];
-  }
-
-  if (aiType === "greedy") {
-    let bestAction = null;
-    let bestScore = -Infinity;
-
-    for (const action of allActions) {
-      let newStates;
-      if (action.type === "move") {
-        newStates = simulateMove(
-          states,
-          action.from,
-          action.to,
-          player,
-          neighborMap,
-        );
-      } else {
-        newStates = [...states];
-        newStates[action.target] = "eliminated";
-      }
-
-      const evaluation = evaluatePosition(newStates);
-      // Greedy: maximize immediate tile count, prefer captures over eliminations
-      const score = evaluation.myTiles * 10 + (action.type === "move" ? 5 : 0);
-
-      if (score > bestScore) {
-        bestScore = score;
-        bestAction = action;
-      }
-    }
-    return bestAction;
-  }
-
-  if (aiType === "defensive") {
-    let bestAction = null;
-    let bestScore = -Infinity;
-
-    for (const action of allActions) {
-      let newStates;
-      if (action.type === "move") {
-        newStates = simulateMove(
-          states,
-          action.from,
-          action.to,
-          player,
-          neighborMap,
-        );
-      } else {
-        newStates = [...states];
-        newStates[action.target] = "eliminated";
-      }
-
-      const evaluation = evaluatePosition(newStates);
-      // Defensive: minimize opponent's options while maintaining tiles
-      const score =
-        evaluation.myTiles * 8 -
-        evaluation.theirMoves * 15 -
-        evaluation.theirElims * 20;
-
-      if (score > bestScore) {
-        bestScore = score;
-        bestAction = action;
-      }
-    }
-    return bestAction;
-  }
-
-  if (aiType === "aggressive") {
-    let bestAction = null;
-    let bestScore = -Infinity;
-
-    for (const action of allActions) {
-      let newStates;
-      if (action.type === "move") {
-        newStates = simulateMove(
-          states,
-          action.from,
-          action.to,
-          player,
-          neighborMap,
-        );
-      } else {
-        newStates = [...states];
-        newStates[action.target] = "eliminated";
-      }
-
-      const evaluation = evaluatePosition(newStates);
-      // Aggressive: maximize tile advantage and opponent's elimination risk
-      const score =
-        evaluation.tileDiff * 15 +
-        evaluation.myElims * 25 -
-        evaluation.theirTiles * 5;
-
-      if (score > bestScore) {
-        bestScore = score;
-        bestAction = action;
-      }
-    }
-    return bestAction;
-  }
-
-  if (aiType === "tactical") {
-    let bestAction = null;
-    let bestScore = -Infinity;
-
-    for (const action of allActions) {
-      let newStates;
-      if (action.type === "move") {
-        newStates = simulateMove(
-          states,
-          action.from,
-          action.to,
-          player,
-          neighborMap,
-        );
-      } else {
-        newStates = [...states];
-        newStates[action.target] = "eliminated";
-      }
-
-      const evaluation = evaluatePosition(newStates);
-
-      // Tactical: balanced approach with emphasis on position and options
-      // Prioritize moves that give us options while limiting opponent's
-      let score = 0;
-      score += evaluation.tileDiff * 12; // Tile advantage
-      score += evaluation.moveDiff * 8; // Mobility advantage
-      score += evaluation.elimDiff * 30; // Elimination opportunities
-      score -= evaluation.theirTiles * 3; // Opponent territory
-      score += evaluation.myMoves * 4; // Keep options open
-
-      // Bonus for eliminations in late game
-      if (
-        polyData &&
-        evaluation.emptyTiles < polyData.faces.length * 0.3 &&
-        action.type === "eliminate"
-      ) {
-        score += 20;
-      }
-
-      if (score > bestScore) {
-        bestScore = score;
-        bestAction = action;
-      }
-    }
-    return bestAction;
-  }
-
-  // Strategic: most sophisticated AI
+  // Strategic AI: comprehensive evaluation with game phase awareness
   let bestAction = null;
   let bestScore = -Infinity;
 
@@ -677,7 +522,6 @@ const makeAIMove = (
 
     const evaluation = evaluatePosition(newStates);
 
-    // Strategic: comprehensive evaluation with game phase awareness
     let score = 0;
     const totalTiles = polyData?.faces?.length || 100;
     const gameProgress = (totalTiles - evaluation.emptyTiles) / totalTiles;
@@ -2066,9 +1910,7 @@ export default function RedVsBlueSphere({ mode, onReturnToMenu }) {
                     {tileStates.filter((s) => s === "red").length}
                   </div>
                   <div className="text-gray-400 text-xs">
-                    {redPlayer === "human"
-                      ? "👤 Human"
-                      : `🤖 ${AI_TYPES[redPlayer]?.name}`}
+                    {redPlayer === "human" ? "👤 Human" : "🤖 Computer"}
                   </div>
                 </div>
               </div>
@@ -2092,9 +1934,7 @@ export default function RedVsBlueSphere({ mode, onReturnToMenu }) {
                     {tileStates.filter((s) => s === "blue").length}
                   </div>
                   <div className="text-gray-400 text-xs">
-                    {bluePlayer === "human"
-                      ? "👤 Human"
-                      : `🤖 ${AI_TYPES[bluePlayer]?.name}`}
+                    {bluePlayer === "human" ? "👤 Human" : "🤖 Computer"}
                   </div>
                 </div>
               </div>
@@ -2264,11 +2104,7 @@ export default function RedVsBlueSphere({ mode, onReturnToMenu }) {
                       className="input-select w-full text-xs py-1.5"
                     >
                       <option value="human">👤 Human</option>
-                      {Object.entries(AI_TYPES).map(([key, { name }]) => (
-                        <option key={key} value={key}>
-                          🤖 {name}
-                        </option>
-                      ))}
+                      <option value="computer">🤖 Computer</option>
                     </select>
                   </div>
                   <div>
@@ -2281,11 +2117,7 @@ export default function RedVsBlueSphere({ mode, onReturnToMenu }) {
                       className="input-select w-full text-xs py-1.5"
                     >
                       <option value="human">👤 Human</option>
-                      {Object.entries(AI_TYPES).map(([key, { name }]) => (
-                        <option key={key} value={key}>
-                          🤖 {name}
-                        </option>
-                      ))}
+                      <option value="computer">🤖 Computer</option>
                     </select>
                   </div>
                 </div>
