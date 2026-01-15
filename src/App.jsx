@@ -362,6 +362,8 @@ const AI_TYPES = {
   greedy: { name: "Greedy" },
   defensive: { name: "Defensive" },
   strategic: { name: "Strategic" },
+  tactical: { name: "Tactical" },
+  aggressive: { name: "Aggressive" },
 };
 
 const getValidMoves = (player, states, neighborMap) => {
@@ -454,6 +456,9 @@ const makeAIMove = (
   polyData,
   exactElimination,
 ) => {
+  // Safety check for polyData
+  if (!polyData) return null;
+
   const moves = getValidMoves(player, states, neighborMap);
   const eliminations = getEliminatable(
     player,
@@ -464,6 +469,42 @@ const makeAIMove = (
   const allActions = [...moves, ...eliminations];
 
   if (allActions.length === 0) return null;
+
+  const opponent = player === "red" ? "blue" : "red";
+
+  // Helper function to evaluate a position
+  const evaluatePosition = (newStates, depth = 1) => {
+    const myTiles = newStates.filter((s) => s === player).length;
+    const theirTiles = newStates.filter((s) => s === opponent).length;
+    const emptyTiles = newStates.filter((s) => s === "empty").length;
+    const myMoves = getValidMoves(player, newStates, neighborMap).length;
+    const theirMoves = getValidMoves(opponent, newStates, neighborMap).length;
+    const myElims = getEliminatable(
+      player,
+      newStates,
+      polyData,
+      exactElimination,
+    ).length;
+    const theirElims = getEliminatable(
+      opponent,
+      newStates,
+      polyData,
+      exactElimination,
+    ).length;
+
+    return {
+      myTiles,
+      theirTiles,
+      emptyTiles,
+      myMoves,
+      theirMoves,
+      myElims,
+      theirElims,
+      tileDiff: myTiles - theirTiles,
+      moveDiff: myMoves - theirMoves,
+      elimDiff: myElims - theirElims,
+    };
+  };
 
   if (aiType === "random") {
     return allActions[Math.floor(Math.random() * allActions.length)];
@@ -487,7 +528,11 @@ const makeAIMove = (
         newStates = [...states];
         newStates[action.target] = "eliminated";
       }
-      const score = newStates.filter((s) => s === player).length;
+
+      const evaluation = evaluatePosition(newStates);
+      // Greedy: maximize immediate tile count, prefer captures over eliminations
+      const score = evaluation.myTiles * 10 + (action.type === "move" ? 5 : 0);
+
       if (score > bestScore) {
         bestScore = score;
         bestAction = action;
@@ -497,7 +542,6 @@ const makeAIMove = (
   }
 
   if (aiType === "defensive") {
-    const opponent = player === "red" ? "blue" : "red";
     let bestAction = null;
     let bestScore = -Infinity;
 
@@ -515,9 +559,14 @@ const makeAIMove = (
         newStates = [...states];
         newStates[action.target] = "eliminated";
       }
-      const myTiles = newStates.filter((s) => s === player).length;
-      const theirMoves = getValidMoves(opponent, newStates, neighborMap).length;
-      const score = myTiles * 10 - theirMoves;
+
+      const evaluation = evaluatePosition(newStates);
+      // Defensive: minimize opponent's options while maintaining tiles
+      const score =
+        evaluation.myTiles * 8 -
+        evaluation.theirMoves * 15 -
+        evaluation.theirElims * 20;
+
       if (score > bestScore) {
         bestScore = score;
         bestAction = action;
@@ -526,8 +575,88 @@ const makeAIMove = (
     return bestAction;
   }
 
-  // Strategic: balanced approach
-  const opponent = player === "red" ? "blue" : "red";
+  if (aiType === "aggressive") {
+    let bestAction = null;
+    let bestScore = -Infinity;
+
+    for (const action of allActions) {
+      let newStates;
+      if (action.type === "move") {
+        newStates = simulateMove(
+          states,
+          action.from,
+          action.to,
+          player,
+          neighborMap,
+        );
+      } else {
+        newStates = [...states];
+        newStates[action.target] = "eliminated";
+      }
+
+      const evaluation = evaluatePosition(newStates);
+      // Aggressive: maximize tile advantage and opponent's elimination risk
+      const score =
+        evaluation.tileDiff * 15 +
+        evaluation.myElims * 25 -
+        evaluation.theirTiles * 5;
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestAction = action;
+      }
+    }
+    return bestAction;
+  }
+
+  if (aiType === "tactical") {
+    let bestAction = null;
+    let bestScore = -Infinity;
+
+    for (const action of allActions) {
+      let newStates;
+      if (action.type === "move") {
+        newStates = simulateMove(
+          states,
+          action.from,
+          action.to,
+          player,
+          neighborMap,
+        );
+      } else {
+        newStates = [...states];
+        newStates[action.target] = "eliminated";
+      }
+
+      const evaluation = evaluatePosition(newStates);
+
+      // Tactical: balanced approach with emphasis on position and options
+      // Prioritize moves that give us options while limiting opponent's
+      let score = 0;
+      score += evaluation.tileDiff * 12; // Tile advantage
+      score += evaluation.moveDiff * 8; // Mobility advantage
+      score += evaluation.elimDiff * 30; // Elimination opportunities
+      score -= evaluation.theirTiles * 3; // Opponent territory
+      score += evaluation.myMoves * 4; // Keep options open
+
+      // Bonus for eliminations in late game
+      if (
+        polyData &&
+        evaluation.emptyTiles < polyData.faces.length * 0.3 &&
+        action.type === "eliminate"
+      ) {
+        score += 20;
+      }
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestAction = action;
+      }
+    }
+    return bestAction;
+  }
+
+  // Strategic: most sophisticated AI
   let bestAction = null;
   let bestScore = -Infinity;
 
@@ -546,12 +675,44 @@ const makeAIMove = (
       newStates[action.target] = "eliminated";
     }
 
-    const myTiles = newStates.filter((s) => s === player).length;
-    const theirTiles = newStates.filter((s) => s === opponent).length;
-    const myMoves = getValidMoves(player, newStates, neighborMap).length;
-    const theirMoves = getValidMoves(opponent, newStates, neighborMap).length;
+    const evaluation = evaluatePosition(newStates);
 
-    const score = (myTiles - theirTiles) * 10 + (myMoves - theirMoves) * 2;
+    // Strategic: comprehensive evaluation with game phase awareness
+    let score = 0;
+    const totalTiles = polyData?.faces?.length || 100;
+    const gameProgress = (totalTiles - evaluation.emptyTiles) / totalTiles;
+
+    // Early game: focus on expansion and mobility
+    if (gameProgress < 0.3) {
+      score += evaluation.myTiles * 10;
+      score += evaluation.myMoves * 6;
+      score -= evaluation.theirMoves * 4;
+    }
+    // Mid game: balanced approach
+    else if (gameProgress < 0.7) {
+      score += evaluation.tileDiff * 15;
+      score += evaluation.moveDiff * 5;
+      score += evaluation.elimDiff * 20;
+      score -= evaluation.theirTiles * 4;
+    }
+    // Late game: aggressive and decisive
+    else {
+      score += evaluation.tileDiff * 20;
+      score += evaluation.elimDiff * 35;
+      score -= evaluation.theirMoves * 10;
+      if (action.type === "eliminate") score += 15;
+    }
+
+    // Always value having more tiles than opponent
+    if (evaluation.myTiles > evaluation.theirTiles) {
+      score += 10;
+    }
+
+    // Penalize if we're about to lose all moves
+    if (evaluation.myMoves === 0) {
+      score -= 1000;
+    }
+
     if (score > bestScore) {
       bestScore = score;
       bestAction = action;
