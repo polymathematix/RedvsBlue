@@ -293,20 +293,86 @@ const generateOctahedron = (detail) => {
     [1, 2, 5],
   ];
 
-  if (detail === 0) {
-    const facePositions = faces.map((face) => faceCenter(face, vertices));
-    return { vertices, faces, facePositions };
+  const facePositions = faces.map((f) => faceCenter(f, vertices));
+
+  if (detail > 0) {
+    const subdivided = subdivideMesh(vertices, faces, detail);
+    const facePositions = subdivided.faces.map((f) =>
+      faceCenter(f, subdivided.vertices),
+    );
+    return { ...subdivided, facePositions };
   }
 
-  const subdivided = subdivideMesh(vertices, faces, detail);
-  const facePositions = subdivided.faces.map((face) =>
-    faceCenter(face, subdivided.vertices),
-  );
-  return {
-    vertices: subdivided.vertices,
-    faces: subdivided.faces,
-    facePositions,
-  };
+  return { vertices, faces, facePositions };
+};
+
+const generateIcosahedron = (detail) => {
+  const phi = (1 + Math.sqrt(5)) / 2; // Golden ratio
+  const a = 1;
+  const b = 1 / phi;
+
+  const vertices = [
+    [0, b, -a],
+    [b, a, 0],
+    [-b, a, 0],
+    [0, b, a],
+    [0, -b, a],
+    [-a, 0, b],
+    [0, -b, -a],
+    [a, 0, -b],
+    [a, 0, b],
+    [-a, 0, -b],
+    [b, -a, 0],
+    [-b, -a, 0],
+  ].map((v) => normalize(v));
+
+  const faces = [
+    [0, 1, 2],
+    [3, 2, 1],
+    [3, 4, 5],
+    [3, 8, 4],
+    [0, 6, 7],
+    [0, 9, 6],
+    [4, 10, 11],
+    [6, 11, 10],
+    [2, 5, 9],
+    [11, 9, 5],
+    [1, 7, 8],
+    [10, 8, 7],
+    [3, 5, 2],
+    [3, 1, 8],
+    [0, 2, 9],
+    [0, 7, 1],
+    [6, 9, 11],
+    [6, 10, 7],
+    [4, 11, 5],
+    [4, 8, 10],
+  ];
+
+  const facePositions = faces.map((f) => faceCenter(f, vertices));
+
+  if (detail > 0) {
+    const subdivided = subdivideMesh(vertices, faces, detail);
+    const facePositions = subdivided.faces.map((f) =>
+      faceCenter(f, subdivided.vertices),
+    );
+    return { ...subdivided, facePositions };
+  }
+
+  return { vertices, faces, facePositions };
+};
+
+const generateTruncatedIcosahedron = () => {
+  // Soccer ball pattern - simplified version with dual of subdivided icosahedron
+  // Start with icosahedron and subdivide once, then convert to dual
+  const ico = generateIcosahedron(1);
+
+  // Use the dual mesh approach for a cleaner soccer ball pattern
+  const dual = toDual(ico.vertices, ico.faces);
+
+  const facePositions = dual.faces.map((f) => faceCenter(f, dual.vertices));
+
+  return { vertices: dual.vertices, faces: dual.faces, facePositions };
 };
 
 const SPHERE_TYPES = {
@@ -330,6 +396,16 @@ const SPHERE_TYPES = {
     name: "Octahedron",
     hasDetail: true,
     generator: generateOctahedron,
+  },
+  icosahedron: {
+    name: "Icosahedron",
+    hasDetail: true,
+    generator: generateIcosahedron,
+  },
+  soccerball: {
+    name: "Soccer Ball",
+    hasDetail: false,
+    generator: generateTruncatedIcosahedron,
   },
 };
 
