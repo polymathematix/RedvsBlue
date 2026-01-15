@@ -611,9 +611,19 @@ export default function RedVsBlueSphere({ mode, onReturnToMenu }) {
   // Stats
   const [turnCount, setTurnCount] = useState(0);
 
+  // Zoom state
+  const [zoom, setZoom] = useState(2.5);
+  const minZoom = 1.5;
+  const maxZoom = 12.0;
+  const zoomRef = useRef(2.5);
+
   // Refs for AI
   const aiThinkingRef = useRef(false);
   const [aiThinking, setAiThinking] = useState(false);
+
+  // Refs for pinch gesture
+  const pinchStartDistance = useRef(null);
+  const pinchStartZoom = useRef(null);
 
   // Sound effects
   const playSound = useCallback(
@@ -901,7 +911,7 @@ export default function RedVsBlueSphere({ mode, onReturnToMenu }) {
     sceneRef.current = scene;
 
     const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 1000);
-    camera.position.z = 2.5;
+    camera.position.z = zoom;
     cameraRef.current = camera;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -920,6 +930,9 @@ export default function RedVsBlueSphere({ mode, onReturnToMenu }) {
 
     const animate = () => {
       animationIdRef.current = requestAnimationFrame(animate);
+      if (cameraRef.current) {
+        cameraRef.current.position.z = zoomRef.current;
+      }
       renderer.render(scene, camera);
     };
     animate();
@@ -1603,10 +1616,32 @@ export default function RedVsBlueSphere({ mode, onReturnToMenu }) {
       isDragging.current = true;
       dragMoved.current = false;
       prevMouse.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    } else if (e.touches.length === 2) {
+      // Pinch zoom
+      isDragging.current = false;
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      pinchStartDistance.current = Math.sqrt(dx * dx + dy * dy);
+      pinchStartZoom.current = zoom;
     }
   };
 
   const handleTouchMove = (e) => {
+    if (e.touches.length === 2 && pinchStartDistance.current !== null) {
+      // Pinch zoom
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      const scale = pinchStartDistance.current / distance;
+      const newZoom = Math.max(
+        minZoom,
+        Math.min(maxZoom, pinchStartZoom.current * scale),
+      );
+      setZoom(newZoom);
+      e.preventDefault();
+      return;
+    }
+
     if (
       !isDragging.current ||
       !sphereGroupRef.current ||
@@ -1629,6 +1664,12 @@ export default function RedVsBlueSphere({ mode, onReturnToMenu }) {
   };
 
   const handleTouchEnd = (e) => {
+    // Reset pinch tracking
+    if (e.touches.length < 2) {
+      pinchStartDistance.current = null;
+      pinchStartZoom.current = null;
+    }
+
     if (!dragMoved.current && e.changedTouches.length === 1) {
       const touch = e.changedTouches[0];
       if (
@@ -1663,6 +1704,36 @@ export default function RedVsBlueSphere({ mode, onReturnToMenu }) {
     }
     isDragging.current = false;
   };
+
+  // Mouse wheel zoom
+  const handleWheel = useCallback(
+    (e) => {
+      e.preventDefault();
+      const delta = e.deltaY * 0.001;
+      setZoom((prevZoom) =>
+        Math.max(minZoom, Math.min(maxZoom, prevZoom + delta)),
+      );
+    },
+    [minZoom, maxZoom],
+  );
+
+  // Zoom button handlers
+  const handleZoomIn = useCallback(() => {
+    setZoom((prevZoom) => Math.max(minZoom, prevZoom - 0.3));
+  }, [minZoom]);
+
+  const handleZoomOut = useCallback(() => {
+    setZoom((prevZoom) => Math.min(maxZoom, prevZoom + 0.3));
+  }, [maxZoom]);
+
+  const handleResetZoom = useCallback(() => {
+    setZoom(2.5);
+  }, []);
+
+  // Update zoom ref when zoom state changes
+  useEffect(() => {
+    zoomRef.current = zoom;
+  }, [zoom]);
 
   // Keyboard controls
   useEffect(() => {
@@ -2084,11 +2155,37 @@ export default function RedVsBlueSphere({ mode, onReturnToMenu }) {
               onTouchStart={handleTouchStart}
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
+              onWheel={handleWheel}
             />
+
+            {/* Zoom Controls */}
+            <div className="absolute top-4 right-4 flex flex-col gap-2">
+              <button
+                onClick={handleZoomIn}
+                className="w-10 h-10 glass rounded-lg hover:bg-white/20 transition-colors flex items-center justify-center text-white font-bold text-xl"
+                title="Zoom In"
+              >
+                +
+              </button>
+              <button
+                onClick={handleResetZoom}
+                className="w-10 h-10 glass rounded-lg hover:bg-white/20 transition-colors flex items-center justify-center text-white text-xs"
+                title="Reset Zoom"
+              >
+                ⊙
+              </button>
+              <button
+                onClick={handleZoomOut}
+                className="w-10 h-10 glass rounded-lg hover:bg-white/20 transition-colors flex items-center justify-center text-white font-bold text-xl"
+                title="Zoom Out"
+              >
+                −
+              </button>
+            </div>
             {/* Overlay hint */}
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 glass px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
               <span className="text-gray-300 text-xs">
-                🖱️ Drag to rotate • Click tiles to play
+                🖱️ Drag to rotate • Scroll to zoom • Click tiles to play
               </span>
             </div>
           </div>
