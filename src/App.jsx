@@ -1109,6 +1109,15 @@ export default function RedVsBlueSphere({ mode, onReturnToMenu }) {
         ? getEliminatableFromTile(selectedTile, tileStates)
         : null;
 
+    // Get all eliminatable tiles for current player to highlight them
+    const allEliminatableTiles = getEliminatable(
+      currentPlayer,
+      tileStates,
+      polyData,
+      exactElimination,
+    );
+    const eliminatableSet = new Set(allEliminatableTiles.map((e) => e.target));
+
     tileStates.forEach((state, faceIdx) => {
       const anim = tileAnimationsRef.current[faceIdx];
       if (!anim) return;
@@ -1136,6 +1145,8 @@ export default function RedVsBlueSphere({ mode, onReturnToMenu }) {
 
       // Calculate target color
       let targetHex = COLORS.empty;
+      const isEliminatable = eliminatableSet.has(faceIdx) && state === "empty";
+
       if (faceIdx === selectedTile) {
         targetHex = COLORS.selected;
       } else if (state === "red") {
@@ -1150,7 +1161,13 @@ export default function RedVsBlueSphere({ mode, onReturnToMenu }) {
         } else if (faceIdx === eliminatableIdx) {
           targetHex = COLORS.eliminatable;
         }
+      } else if (isEliminatable) {
+        // Highlight eliminatable tiles even when no tile is selected
+        targetHex = COLORS.eliminatable;
       }
+
+      // Mark eliminatable tiles for pulsing animation
+      anim.isEliminatable = isEliminatable;
 
       anim.targetColor.setHex(targetHex);
     });
@@ -1163,6 +1180,8 @@ export default function RedVsBlueSphere({ mode, onReturnToMenu }) {
     getEliminatableFromTile,
     polyData,
     spawnParticles,
+    currentPlayer,
+    exactElimination,
   ]);
 
   // Animation loop for smooth color transitions and pulse effects
@@ -1219,6 +1238,25 @@ export default function RedVsBlueSphere({ mode, onReturnToMenu }) {
           needsUpdate = true;
         }
 
+        // Continuous pulse for eliminatable tiles
+        if (anim.isEliminatable && state === "empty") {
+          if (!anim.eliminatablePulseTime) {
+            anim.eliminatablePulseTime = Math.random() * Math.PI * 2; // Random start phase
+          }
+          anim.eliminatablePulseTime += 0.03;
+
+          // Gentle pulse for eliminatable tiles
+          const pulse = Math.sin(anim.eliminatablePulseTime) * 0.5 + 0.5; // 0 to 1
+          scale = 1 + pulse * 0.08;
+
+          // Gentle orange glow
+          emissiveIntensity = Math.max(emissiveIntensity, pulse * 0.3);
+
+          needsUpdate = true;
+        } else {
+          anim.eliminatablePulseTime = 0;
+        }
+
         // Flash effect (white flash on capture)
         if (anim.flashIntensity > 0) {
           anim.flashIntensity -= 0.08;
@@ -1233,11 +1271,22 @@ export default function RedVsBlueSphere({ mode, onReturnToMenu }) {
           .lerp(flashColor, anim.flashIntensity * 0.5);
 
         mesh.material.color.copy(displayColor);
-        mesh.material.emissive.setRGB(
-          emissiveIntensity,
-          emissiveIntensity,
-          emissiveIntensity,
-        );
+
+        // Use orange emissive for eliminatable tiles, white for others
+        if (anim.isEliminatable && state === "empty") {
+          // Orange glow for eliminatable tiles (matching COLORS.eliminatable)
+          mesh.material.emissive.setRGB(
+            0.976 * emissiveIntensity,
+            0.451 * emissiveIntensity,
+            0.086 * emissiveIntensity,
+          );
+        } else {
+          mesh.material.emissive.setRGB(
+            emissiveIntensity,
+            emissiveIntensity,
+            emissiveIntensity,
+          );
+        }
         mesh.scale.setScalar(scale);
       });
 
@@ -1480,6 +1529,28 @@ export default function RedVsBlueSphere({ mode, onReturnToMenu }) {
 
   const handleTileClick = (faceIdx) => {
     const state = tileStates[faceIdx];
+
+    // Check if this tile can be eliminated directly (without selecting a tile first)
+    if (selectedTile === null && state === "empty") {
+      const allEliminatableTiles = getEliminatable(
+        currentPlayer,
+        tileStates,
+        polyData,
+        exactElimination,
+      );
+      const isEliminatable = allEliminatableTiles.some(
+        (e) => e.target === faceIdx,
+      );
+
+      if (isEliminatable) {
+        executeMove(
+          { type: "eliminate", target: faceIdx },
+          currentPlayer,
+          tileStates,
+        );
+        return;
+      }
+    }
 
     if (selectedTile === null) {
       if (state === currentPlayer) {
