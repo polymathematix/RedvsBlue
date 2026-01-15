@@ -1446,6 +1446,7 @@ export default function RedVsBlueSphere({ mode, onReturnToMenu }) {
   // Execute a move (used by both human and AI)
   const executeMove = useCallback(
     (action, player, currentStates) => {
+      console.log("[executeMove] Called for", player, "action:", action);
       let newStates = [...currentStates];
       const opponent = player === "red" ? "blue" : "red";
       let captured = false;
@@ -1497,9 +1498,11 @@ export default function RedVsBlueSphere({ mode, onReturnToMenu }) {
       }
 
       // Reset AI thinking flag BEFORE updating states to allow next AI turn to trigger
+      console.log("[executeMove] Resetting AI thinking flag");
       aiThinkingRef.current = false;
       setAiThinking(false);
 
+      console.log("[executeMove] Updating states, next player:", nextPlayer);
       setTileStates(newStates);
       setSelectedTile(null);
 
@@ -1538,12 +1541,22 @@ export default function RedVsBlueSphere({ mode, onReturnToMenu }) {
 
   // AI turn effect
   useEffect(() => {
+    console.log("[AI Effect] Triggered", {
+      currentPlayer,
+      gameOver,
+      aiThinking: aiThinkingRef.current,
+      hasPolyData: !!polyData,
+      neighborsLength: neighbors.length,
+      turnCount,
+    });
+
     if (
       gameOver ||
       aiThinkingRef.current ||
       !polyData ||
       neighbors.length === 0
     ) {
+      console.log("[AI Effect] Returning early");
       return;
     }
 
@@ -1562,7 +1575,16 @@ export default function RedVsBlueSphere({ mode, onReturnToMenu }) {
       const statesSnapshot = [...tileStates];
       const playerSnapshot = currentPlayer;
 
+      console.log(
+        "[AI] Setting timeout for",
+        playerSnapshot,
+        "turn",
+        turnCount + 1,
+      );
+
       aiTimeoutRef.current = setTimeout(() => {
+        console.log("[AI Timeout] Executing for", playerSnapshot);
+
         const action = makeAIMove(
           playerType,
           playerSnapshot,
@@ -1573,7 +1595,10 @@ export default function RedVsBlueSphere({ mode, onReturnToMenu }) {
           moveHistoryRef.current,
         );
 
+        console.log("[AI Action]", playerSnapshot, "chose:", action);
+
         if (action) {
+          console.log("[AI] Executing move for", playerSnapshot);
           // Track this move in history
           const actionSig =
             action.type === "move"
@@ -1586,6 +1611,11 @@ export default function RedVsBlueSphere({ mode, onReturnToMenu }) {
           }
           executeMove(action, playerSnapshot, statesSnapshot);
         } else {
+          console.log(
+            "[AI] No valid moves for",
+            playerSnapshot,
+            "- ending game",
+          );
           const opponent = playerSnapshot === "red" ? "blue" : "red";
           setGameOver(true);
           setWinner(opponent);
