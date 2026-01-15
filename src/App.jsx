@@ -450,9 +450,30 @@ const makeAIMove = (
   neighborMap,
   polyData,
   exactElimination,
+  moveHistory = [],
 ) => {
   // Safety check for polyData
   if (!polyData) return null;
+
+  // Create a signature for an action to track repetition
+  const getActionSignature = (action) => {
+    if (action.type === "move") {
+      return `move:${action.from}-${action.to}`;
+    } else {
+      return `eliminate:${action.target}`;
+    }
+  };
+
+  // Count recent occurrences of each action
+  const recentMoves = moveHistory.slice(-6); // Look at last 6 moves
+  const moveCount = {};
+  recentMoves.forEach((sig) => {
+    moveCount[sig] = (moveCount[sig] || 0) + 1;
+  });
+
+  let score = 0;
+  const totalTiles = polyData?.faces?.length || 100;
+  const gameProgress = (totalTiles - evaluation.emptyTiles) / totalTiles;
 
   const moves = getValidMoves(player, states, neighborMap);
   const eliminations = getEliminatable(
@@ -502,8 +523,7 @@ const makeAIMove = (
   };
 
   // Strategic AI: comprehensive evaluation with game phase awareness
-  let bestAction = null;
-  let bestScore = -Infinity;
+  const actionScores = [];
 
   for (const action of allActions) {
     let newStates;
@@ -525,6 +545,14 @@ const makeAIMove = (
     let score = 0;
     const totalTiles = polyData?.faces?.length || 100;
     const gameProgress = (totalTiles - evaluation.emptyTiles) / totalTiles;
+
+    // Penalize repetitive moves to prevent loops
+    const actionSig = getActionSignature(action);
+    const repetitionCount = moveCount[actionSig] || 0;
+    if (repetitionCount > 0) {
+      // Heavy penalty for repeated moves - increases exponentially
+      score -= repetitionCount * 100;
+    }
 
     // Early game: focus on expansion and mobility
     if (gameProgress < 0.3) {
@@ -557,12 +585,28 @@ const makeAIMove = (
       score -= 1000;
     }
 
-    if (score > bestScore) {
-      bestScore = score;
-      bestAction = action;
-    }
+    // Add small random factor to prevent exact score ties
+    score += Math.random() * 5;
+
+    actionScores.push({ action, score });
   }
-  return bestAction;
+
+  // Sort by score descending
+  actionScores.sort((a, b) => b.score - a.score);
+
+  if (actionScores.length === 0) return null;
+
+  // Get the best score
+  const bestScore = actionScores[0].score;
+
+  // Consider all actions within 10% of the best score as "good enough"
+  // This adds variety and prevents getting stuck in loops
+  const threshold = bestScore * 0.9;
+  const goodActions = actionScores.filter((item) => item.score >= threshold);
+
+  // Randomly pick from the good actions
+  const chosen = goodActions[Math.floor(Math.random() * goodActions.length)];
+  return chosen.action;
 };
 
 // ============ COLOR CONSTANTS ============
@@ -629,6 +673,7 @@ export default function RedVsBlueSphere({ mode, onReturnToMenu }) {
   // Refs for AI
   const aiThinkingRef = useRef(false);
   const [aiThinking, setAiThinking] = useState(false);
+  const moveHistoryRef = useRef([]);
 
   // Refs for pinch gesture
   const pinchStartDistance = useRef(null);
@@ -890,6 +935,7 @@ export default function RedVsBlueSphere({ mode, onReturnToMenu }) {
     aiThinkingRef.current = false;
     setAiThinking(false);
     prevTileStatesRef.current = [];
+    moveHistoryRef.current = [];
 
     // Reset animation states
     tileAnimationsRef.current = [];
@@ -1483,9 +1529,7 @@ export default function RedVsBlueSphere({ mode, onReturnToMenu }) {
     if (playerType !== "human") {
       aiThinkingRef.current = true;
       setAiThinking(true);
-      setMessage(
-        `${currentPlayer === "red" ? "Red" : "Blue"} (${AI_TYPES[playerType]?.name}) thinking...`,
-      );
+      setMessage(`${currentPlayer === "red" ? "Red" : "Blue"}'s turn`);
 
       const statesSnapshot = [...tileStates];
       const playerSnapshot = currentPlayer;
@@ -1498,9 +1542,20 @@ export default function RedVsBlueSphere({ mode, onReturnToMenu }) {
           neighbors,
           polyData,
           exactElimination,
+          moveHistoryRef.current,
         );
 
         if (action) {
+          // Track this move in history
+          const actionSig =
+            action.type === "move"
+              ? `move:${action.from}-${action.to}`
+              : `eliminate:${action.target}`;
+          moveHistoryRef.current.push(actionSig);
+          // Keep only last 10 moves
+          if (moveHistoryRef.current.length > 10) {
+            moveHistoryRef.current.shift();
+          }
           executeMove(action, playerSnapshot, statesSnapshot);
         } else {
           const opponent = playerSnapshot === "red" ? "blue" : "red";
@@ -1841,7 +1896,15 @@ export default function RedVsBlueSphere({ mode, onReturnToMenu }) {
     <div className="flex flex-col h-screen w-full overflow-hidden fade-in">
       {/* Compact Header */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-white/10 bg-gradient-to-r from-slate-900/50 to-slate-800/50 backdrop-blur-sm">
-        <h1 className="text-xl sm:text-2xl font-black text-gradient-purple">
+        <h1
+          className="text-xl sm:text-2xl font-black"
+          style={{
+            background: "linear-gradient(to right, #ef4444, #3b82f6)",
+            backgroundClip: "text",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+          }}
+        >
           Red vs Blue
         </h1>
         <div className="flex items-center gap-3 text-xs text-gray-400">
@@ -1967,22 +2030,6 @@ export default function RedVsBlueSphere({ mode, onReturnToMenu }) {
                 <div className="text-xs lg:text-sm font-semibold text-gray-200">
                   {message}
                 </div>
-                {aiThinking && (
-                  <div className="flex items-center justify-center gap-2 mt-1">
-                    <div
-                      className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-bounce"
-                      style={{ animationDelay: "0ms" }}
-                    ></div>
-                    <div
-                      className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-bounce"
-                      style={{ animationDelay: "150ms" }}
-                    ></div>
-                    <div
-                      className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-bounce"
-                      style={{ animationDelay: "300ms" }}
-                    ></div>
-                  </div>
-                )}
               </div>
             )}
           </div>
