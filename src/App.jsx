@@ -471,10 +471,6 @@ const makeAIMove = (
     moveCount[sig] = (moveCount[sig] || 0) + 1;
   });
 
-  let score = 0;
-  const totalTiles = polyData?.faces?.length || 100;
-  const gameProgress = (totalTiles - evaluation.emptyTiles) / totalTiles;
-
   const moves = getValidMoves(player, states, neighborMap);
   const eliminations = getEliminatable(
     player,
