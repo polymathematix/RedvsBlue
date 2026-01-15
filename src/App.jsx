@@ -572,7 +572,7 @@ const COLORS = {
 };
 
 // ============ MAIN COMPONENT ============
-export default function RedVsBlueSphere() {
+export default function RedVsBlueSphere({ mode, onReturnToMenu }) {
   const containerRef = useRef(null);
   const sceneRef = useRef(null);
   const rendererRef = useRef(null);
@@ -1728,9 +1728,16 @@ export default function RedVsBlueSphere() {
             </button>
           )}
           {gameOver && (
-            <button onClick={applySettings} className="btn-primary">
-              🎮 Play Again
-            </button>
+            <>
+              <button onClick={applySettings} className="btn-primary">
+                🎮 Play Again
+              </button>
+              {onReturnToMenu && (
+                <button onClick={onReturnToMenu} className="btn-secondary">
+                  ← Back to Menu
+                </button>
+              )}
+            </>
           )}
         </div>
 
