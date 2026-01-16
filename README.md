@@ -17,6 +17,44 @@ Red vs Blue is a tactical board game played on various 3D polyhedra (sphere appr
 - **Sound Effects**: Audio feedback for moves, captures, and eliminations
 - **Customizable Settings**: Adjust detail level, starting tiles, and elimination rules
 - **Auto-Focus Camera**: Automatically rotates to show the current player's position
+- **🔬 Game Analyst**: Run bulk simulations, collect statistics, visualize data with charts, and export results for analysis
+
+## 🔬 Game Analyst
+
+The **Game Analyst** is a powerful statistical analysis tool for Red vs Blue. Access it from the main menu to:
+
+- **Run Automated Simulations**: Execute hundreds or thousands of games automatically
+- **Statistical Analysis**: Analyze win rates, game lengths, moves, eliminations, and captures
+- **Data Visualization**: View results through interactive charts (pie, bar, scatter, line, area charts)
+- **Export Data**: Export results as JSON or CSV for further analysis in Excel, Python, or other tools
+- **Balance Testing**: Verify game fairness and identify configuration imbalances
+- **Strategy Research**: Study AI behavior patterns and optimal configurations
+
+### Quick Start Guide
+
+1. Click **"🔬 Game Analyst"** from the main menu
+2. Configure your game settings (sphere type, subdivisions, starting tiles, etc.)
+3. Set the number of simulations (recommended: 100-500 for reliable data)
+4. Click **"🚀 Run Simulations"**
+5. View real-time progress and statistics
+6. Analyze the results with interactive charts
+7. Export data as JSON or CSV for deeper analysis
+
+### Key Metrics
+
+- **Win Rates**: Red vs Blue win percentages (balanced gameplay should be ~50/50)
+- **Game Length**: Average, min, max, and median turn counts
+- **Action Statistics**: Average moves, eliminations, and territory captures per game
+- **Performance**: Total simulation time and average time per game
+
+### Use Cases
+
+- **Game Balance**: Verify fair gameplay across different configurations
+- **Sphere Comparison**: Test which sphere types produce the most engaging games
+- **AI Analysis**: Study patterns in AI decision-making
+- **Configuration Optimization**: Find ideal settings for balanced, fun gameplay
+
+For detailed documentation, see [ANALYST_GUIDE.md](./ANALYST_GUIDE.md)
 
 ## 🚀 Getting Started
 
@@ -112,12 +150,16 @@ npm run preview
 ```
 RedvsBlue/
 ├── src/
-│   ├── App.jsx          # Main game component
-│   └── main.jsx         # React entry point
-├── index.html           # HTML template
-├── package.json         # Dependencies and scripts
-├── vite.config.js       # Vite configuration
-└── README.md            # This file
+│   ├── App.jsx             # Main game component
+│   ├── Analyst.jsx         # Game analyst/statistics tool
+│   ├── GameSimulator.js    # Headless game simulation engine
+│   ├── MenuSystem.jsx      # Main menu navigation
+│   └── main.jsx            # React entry point
+├── index.html              # HTML template
+├── package.json            # Dependencies and scripts
+├── vite.config.js          # Vite configuration
+├── README.md               # This file
+└── ANALYST_GUIDE.md        # Detailed analyst documentation
 ```
 
 ## 🎨 Color Legend

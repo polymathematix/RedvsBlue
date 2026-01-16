@@ -2,6 +2,89 @@
 
 All notable changes to the Red vs Blue game project.
 
+## [2.1.1] - 2025
+
+### Fixed - Analyst Scrolling
+
+#### Scrollbar Improvements
+- **Main Container Scrolling**: Fixed missing scrollbar in Analyst view to allow viewing all charts
+- **Sticky Header**: Header now stays visible while scrolling through results
+- **Configuration Panel**: Added max-height and scrolling for long configuration options
+- **Smooth Scrolling**: Enabled smooth scroll behavior for better user experience
+
+#### Visual Enhancements
+- **Custom Scrollbar Styling**: Beautiful gradient scrollbar matching the app theme
+- **Scroll Indicator**: Animated hint shows users when more content is available below
+- **Auto-hiding Hint**: Scroll indicator disappears after scrolling or when near bottom
+- **Better Spacing**: Added padding at bottom to ensure all content is accessible
+
+#### Technical Implementation
+- Container now uses `h-screen overflow-y-auto` for proper scrolling
+- Configuration panel has `max-h-[calc(100vh-12rem)]` with overflow
+- Custom CSS for WebKit scrollbar styling (purple gradient theme)
+- React hooks for scroll position detection and hint visibility
+- Smooth scroll behavior with `scroll-smooth` class
+
+## [2.1.0] - 2025
+
+### Added - Game Analyst
+
+#### Statistical Analysis Tool
+- **Automated Simulations**: Run hundreds or thousands of games automatically
+- **Real-time Progress**: Live progress bar and current game statistics during simulation
+- **Comprehensive Statistics**: Win rates, game lengths, moves, eliminations, and captures
+- **Data Export**: Export results as JSON or CSV for external analysis
+- **Interactive Visualizations**: Multiple chart types for data analysis
+
+#### Visualization Charts
+- **Win Distribution (Pie Chart)**: Visual representation of red vs blue win rates
+- **Game Length Distribution (Bar Chart)**: Histogram showing distribution of game durations
+- **Win Rate Trend (Area Chart)**: Red win rate progression over simulations
+- **Game Length by Winner (Scatter Chart)**: Individual game lengths color-coded by winner
+- **Average Game Length Trend (Line Chart)**: Moving average of game duration
+
+#### Configuration Options
+- **Sphere Settings**: All sphere types, subdivisions, starting tiles
+- **Game Rules**: Exact elimination toggle
+- **Simulation Control**: Number of simulations (1-10,000), max turns per game (50-2,000)
+- **Real-time Feedback**: Live updates showing current simulation progress
+
+#### Statistical Metrics
+- **Game Outcomes**: Total games, red/blue wins, win percentages
+- **Game Length**: Average, minimum, maximum, and median turn counts
+- **Action Analysis**: Average moves, eliminations, and territory captures
+- **Performance**: Total simulation time and average time per game
+
+#### Menu System
+- **Main Menu**: New navigation system with game mode selection
+- **Analyst Access**: Dedicated menu card for accessing the Game Analyst
+- **Return Navigation**: Easy return to menu from both game and analyst modes
+
+#### Use Cases
+- **Balance Testing**: Verify fair gameplay across different configurations
+- **Sphere Comparison**: Compare performance of different sphere geometries
+- **AI Analysis**: Study patterns in AI decision-making and strategies
+- **Configuration Optimization**: Find ideal settings for engaging gameplay
+
+#### Technical Implementation
+- **GameSimulator.js**: Headless game simulation engine for fast bulk processing
+- **Analyst.jsx**: Full-featured React component with Recharts integration
+- **MenuSystem.jsx**: Navigation wrapper for mode selection
+- **Recharts Integration**: Professional charting library for data visualization
+
+#### New Dependencies
+- **recharts** (^2.x): React charting library for interactive visualizations
+
+#### New Files
+- `src/Analyst.jsx` - Main analyst component with UI and logic
+- `src/GameSimulator.js` - Headless simulation engine
+- `src/MenuSystem.jsx` - Main menu navigation system
+- `ANALYST_GUIDE.md` - Comprehensive 360+ line documentation
+
+#### Documentation
+- **ANALYST_GUIDE.md**: Detailed guide covering configuration, metrics, use cases, and troubleshooting
+- **README.md**: Updated with Analyst feature overview and quick start guide
+
 ## [2.0.0] - 2025
 
 ### Added - Dynamic Sphere Scaling
@@ -150,6 +233,8 @@ The multiplayer feature was removed because:
 
 ## Version Summary
 
+- **v2.1.1**: Fixed Analyst scrolling issues and improved navigation
+- **v2.1.0**: Game Analyst tool with bulk simulations, statistical analysis, and data visualization
 - **v2.0.0**: Major UI overhaul + Dynamic scaling + Multiplayer removal
 - **v1.0.0**: Initial release with all core features
 
