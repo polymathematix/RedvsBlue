@@ -60,6 +60,9 @@ export default function Analyst({ onReturnToMenu }) {
   const simulationRef = useRef({ cancelled: false });
   const scrollContainerRef = useRef(null);
 
+  // Helper to yield control back to browser
+  const yieldToMain = () => new Promise((resolve) => setTimeout(resolve, 0));
+
   // Handle scroll to hide/show scroll hint
   useEffect(() => {
     const handleScroll = (e) => {
@@ -119,6 +122,9 @@ export default function Analyst({ onReturnToMenu }) {
           console.error(`Error in simulation ${i + 1}:`, simError);
           // Continue with other simulations
         }
+
+        // Yield to browser to keep UI responsive
+        await yieldToMain();
       }
 
       if (simulationResults.length === 0) {
