@@ -373,7 +373,7 @@ const generateSphere = (sphereType, subdivisions) => {
   const generator = SPHERE_GENERATORS[sphereType];
   if (!generator) throw new Error(`Unknown sphere type: ${sphereType}`);
 
-  if (sphereType === 'dodecahedron' || sphereType === 'soccerball') {
+  if (sphereType === "dodecahedron" || sphereType === "soccerball") {
     return generator();
   }
   return generator(subdivisions);
@@ -405,13 +405,18 @@ const getValidMoves = (tileStates, currentPlayer, neighbors) => {
   return moves;
 };
 
-const getEliminatable = (tileStates, currentPlayer, facePositions, exactElimination) => {
+const getEliminatable = (
+  tileStates,
+  currentPlayer,
+  facePositions,
+  exactElimination,
+) => {
   const playerTiles = tileStates
     .map((state, idx) => (state === currentPlayer ? idx : null))
     .filter((pos) => pos !== null);
 
   const numFaces = tileStates.length;
-  const avgTileRadius = Math.sqrt(4 * Math.PI / numFaces);
+  const avgTileRadius = Math.sqrt((4 * Math.PI) / numFaces);
   const exactThreshold = avgTileRadius * 1.5;
 
   const eliminatable = [];
@@ -488,7 +493,9 @@ const checkCaptures = (tileStates, currentPlayer, neighbors) => {
     }
 
     const isSurrounded = group.every((tile) =>
-      neighbors[tile].every((n) => newStates[n] !== opponent && newStates[n] !== "empty"),
+      neighbors[tile].every(
+        (n) => newStates[n] !== opponent && newStates[n] !== "empty",
+      ),
     );
 
     if (isSurrounded && boundaryTiles.size > 0) {
@@ -502,7 +509,14 @@ const checkCaptures = (tileStates, currentPlayer, neighbors) => {
   return { newStates, changed };
 };
 
-const makeAIMove = (tileStates, currentPlayer, neighbors, facePositions, exactElimination, moveHistory = []) => {
+const makeAIMove = (
+  tileStates,
+  currentPlayer,
+  neighbors,
+  facePositions,
+  exactElimination,
+  moveHistory = [],
+) => {
   const getActionSignature = (action) => {
     if (action.type === "move") return `move-${action.from}-${action.to}`;
     return `eliminate-${action.target}`;
@@ -609,7 +623,15 @@ export const simulateGame = async (config) => {
 
   // Generate sphere
   const polyData = generateSphere(sphereType, subdivisions);
-  const { faces, facePositions } = polyData;
+  let { faces, vertices, facePositions } = polyData;
+
+  // Ensure facePositions exists (some generators don't return it)
+  if (!facePositions) {
+    facePositions = {};
+    faces.forEach((face, idx) => {
+      facePositions[idx] = faceCenter(face, vertices);
+    });
+  }
 
   // Generate neighbors
   const neighbors = faces.map((_, idx) => getNeighbors(idx, faces));
@@ -674,7 +696,9 @@ export const simulateGame = async (config) => {
 
     // Check captures
     const tilesBeforeCaptureRed = tileStates.filter((s) => s === "red").length;
-    const tilesBeforeCaptureBlue = tileStates.filter((s) => s === "blue").length;
+    const tilesBeforeCaptureBlue = tileStates.filter(
+      (s) => s === "blue",
+    ).length;
 
     const captureResult = checkCaptures(tileStates, currentPlayer, neighbors);
     tileStates.splice(0, tileStates.length, ...captureResult.newStates);
@@ -683,15 +707,17 @@ export const simulateGame = async (config) => {
     const tilesAfterCaptureBlue = tileStates.filter((s) => s === "blue").length;
 
     const territoryCaptured = Math.abs(
-      (tilesAfterCaptureRed - tilesBeforeCaptureRed) +
-      (tilesAfterCaptureBlue - tilesBeforeCaptureBlue)
+      tilesAfterCaptureRed -
+        tilesBeforeCaptureRed +
+        (tilesAfterCaptureBlue - tilesBeforeCaptureBlue),
     );
     captures += territoryCaptured;
 
     // Add to move history
-    const actionSig = action.type === "move"
-      ? `move-${action.from}-${action.to}`
-      : `eliminate-${action.target}`;
+    const actionSig =
+      action.type === "move"
+        ? `move-${action.from}-${action.to}`
+        : `eliminate-${action.target}`;
     moveHistory.push(actionSig);
     if (moveHistory.length > 20) moveHistory.shift();
 
@@ -719,7 +745,8 @@ export const simulateGame = async (config) => {
   if (!winner) {
     const redTiles = tileStates.filter((s) => s === "red").length;
     const blueTiles = tileStates.filter((s) => s === "blue").length;
-    winner = redTiles > blueTiles ? "red" : blueTiles > redTiles ? "blue" : "red";
+    winner =
+      redTiles > blueTiles ? "red" : blueTiles > redTiles ? "blue" : "red";
   }
 
   return {
